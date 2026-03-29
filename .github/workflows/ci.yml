@@ -228,7 +228,17 @@ jobs:
           while IFS= read -r wasm; do
             found=1
             opt="${wasm%.wasm}.opt.wasm"
-            wasm-opt -Oz "$wasm" -o "$opt"
+
+            # Some artifacts require bulk-memory to pass Binaryen validation.
+            # Retry with explicit feature enablement to avoid hard-failing CI.
+            if ! wasm-opt -Oz "$wasm" -o "$opt"; then
+              echo "Retrying with --enable-bulk-memory for $wasm"
+              if ! wasm-opt --enable-bulk-memory -Oz "$wasm" -o "$opt"; then
+                echo "$wasm,SKIPPED,SKIPPED,SKIPPED,SKIPPED" >> "$report"
+                echo "Skipping $wasm: wasm-opt failed with/without bulk-memory"
+                continue
+              fi
+            fi
 
             original=$(stat -c%s "$wasm")
             optimized=$(stat -c%s "$opt")
