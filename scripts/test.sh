@@ -245,6 +245,34 @@ check_format() {
     fi
 }
 
+# Function to run coverage
+run_coverage() {
+    local contract_path=$1
+    
+    print_test "Running coverage on: $contract_path"
+    
+    # Check if cargo-tarpaulin is installed
+    if ! command -v cargo-tarpaulin &> /dev/null; then
+        print_warn "cargo-tarpaulin not found. Installing..."
+        if ! cargo install cargo-tarpaulin; then
+            print_error "Failed to install cargo-tarpaulin"
+            return 1
+        fi
+    fi
+    
+    cd "$contract_path"
+    
+    if cargo tarpaulin --out Html --output-dir coverage 2>&1; then
+        print_info "✓ Coverage report generated in $contract_path/coverage/"
+        cd - > /dev/null
+        return 0
+    else
+        print_error "✗ Coverage generation failed"
+        cd - > /dev/null
+        return 1
+    fi
+}
+
 # Parse arguments
 VERBOSE=false
 RUN_CLIPPY=false
@@ -264,6 +292,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         -f|--format)
             CHECK_FORMAT=true
+            shift
+            ;;
+        --coverage)
+            RUN_COVERAGE=true
             shift
             ;;
         -a|--all)
@@ -423,5 +455,9 @@ else
     else
         print_error "Path not found: $CONTRACT_PATH"
         exit 1
+    fi
+    
+    if [ "$RUN_COVERAGE" = true ]; then
+        run_coverage "$CONTRACT_PATH"
     fi
 fi
